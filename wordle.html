@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Clone</title>
+    <style>
+        :root {
+            --color-correct: #6aaa64;
+            --color-present: #c9b458;
+            --color-absent: #787c7e;
+            --color-bg: #ffffff;
+            --color-border: #d3d6da;
+            --color-text: #000000;
+            --key-bg: #e1e6eb;
+        }
+
+        /* Dark mode preference support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-bg: #121213;
+                --color-border: #3a3a3c;
+                --color-text: #ffffff;
+                --key-bg: #818384;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 50px;
+            border-bottom: 1px solid var(--color-border);
+            font-weight: 700;
+            font-size: 24px;
+            letter-spacing: 0.2rem;
+            text-transform: uppercase;
+        }
+
+        #game-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+        }
+
+        /* Grid Styles */
+        #board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        #board {
+            display: grid;
+            grid-template-rows: repeat(6, 1fr);
+            grid-gap: 5px;
+            width: 350px;
+            height: 420px;
+            max-width: 100%;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-gap: 5px;
+        }
+
+        .tile {
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--color-border);
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            line-height: 2rem;
+            font-weight: bold;
+            vertical-align: middle;
+            text-transform: uppercase;
+            user-select: none;
+            transition: transform 0.25s linear;
+        }
+
+        .tile[data-state="toggled"] {
+            border-color: #565758;
+            animation: pop 0.1s ease-in-out;
+        }
+
+        .tile[data-state="absent"] {
+            background-color: var(--color-absent);
+            border-color: var(--color-absent);
+            color: white;
+        }
+
+        .tile[data-state="present"] {
+            background-color: var(--color-present);
+            border-color: var(--color-present);
+            color: white;
+        }
+
+        .tile[data-state="correct"] {
+            background-color: var(--color-correct);
+            border-color: var(--color-correct);
+            color: white;
+        }
+
+        /* Keyboard Styles */
+        #keyboard {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 10px;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            gap: 6px;
+            touch-action: manipulation;
+        }
+
+        .key {
+            background-color: var(--key-bg);
+            color: var(--color-text);
+            border: 0;
+            padding: 0;
+            height: 58px;
+            grid-column: span 2;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            font-weight: bold;
+            font-size: 1.25rem;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-transform: uppercase;
+        }
+
+        .key.wide {
+            flex: 1.5;
+            font-size: 0.85rem;
+        }
+
+        .key[data-state="absent"] { background-color: var(--color-absent); color: white; }
+        .key[data-state="present"] { background-color: var(--color-present); color: white; }
+        .key[data-state="correct"] { background-color: var(--color-correct); color: white; }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translate(-50%, 0);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background-color: #121213;
+            color: #ffffff;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            opacity: 1;
+            transition: opacity 0.15s ease-out;
+            text-align: center;
+        }
+
+        /* Animations */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .flip {
+            transform: rotateX(90deg);
+        }
+    </style>
+</head>
+<body>
+
+    <header>Wordle</header>
+
+    <div id="toast-container"></div>
+
+    <div id="game-container">
+        <div id="board-container">
+            <div id="board"></div>
+        </div>
+
+        <div id="keyboard">
+            <div class="keyboard-row">
+                <button class="key" data-key="Q">q</button>
+                <button class="key" data-key="W">w</button>
+                <button class="key" data-key="E">e</button>
+                <button class="key" data-key="R">r</button>
+                <button class="key" data-key="T">t</button>
+                <button class="key" data-key="Y">y</button>
+                <button class="key" data-key="U">u</button>
+                <button class="key" data-key="I">i</button>
+                <button class="key" data-key="O">o</button>
+                <button class="key" data-key="P">p</button>
+            </div>
+            <div class="keyboard-row">
+                <button class="key" data-key="A">a</button>
+                <button class="key" data-key="S">s</button>
+                <button class="key" data-key="D">d</button>
+                <button class="key" data-key="F">f</button>
+                <button class="key" data-key="G">g</button>
+                <button class="key" data-key="H">h</button>
+                <button class="key" data-key="J">j</button>
+                <button class="key" data-key="K">k</button>
+                <button class="key" data-key="L">l</button>
+            </div>
+            <div class="keyboard-row">
+                <button class="key wide" data-key="ENTER">ENTER</button>
+                <button class="key" data-key="Z">z</button>
+                <button class="key" data-key="X">x</button>
+                <button class="key" data-key="C">c</button>
+                <button class="key" data-key="V">v</button>
+                <button class="key" data-key="B">b</button>
+                <button class="key" data-key="N">n</button>
+                <button class="key" data-key="M">m</button>
+                <button class="key wide" data-key="BACKSPACE">⌫</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME CONFIGURATION ---
+        const TARGET_WORD = "ANGST".toUpperCase(); 
+        const MAX_ATTEMPTS = 6;
+        const WORD_LENGTH = 5;
+
+        // --- GAME STATE ---
+        let currentRow = 0;
+        let currentTile = 0;
+        let gameOver = false;
+        const guesses = Array(MAX_ATTEMPTS).fill("").map(() => Array(WORD_LENGTH).fill(""));
+
+        // DOM Elements
+        const board = document.getElementById("board");
+        const keys = document.querySelectorAll(".key");
+
+        // Initialize Board Rows and Tiles
+        function initBoard() {
+            for (let i = 0; i < MAX_ATTEMPTS; i++) {
+                const row = document.createElement("div");
+                row.className = "row";
+                for (let j = 0; j < WORD_LENGTH; j++) {
+                    const tile = document.createElement("div");
+                    tile.className = "tile";
+                    tile.id = `tile-${i}-${j}`;
+                    row.appendChild(tile);
+                }
+                board.appendChild(row);
+            }
+        }
+
+        // Handle Input Actions
+        function handleKeyPress(key) {
+            if (gameOver) return;
+
+            if (key === "ENTER") {
+                submitGuess();
+            } else if (key === "BACKSPACE" || key === "BACK") {
+                deleteLetter();
+            } else if (/^[A-Z]$/.test(key)) {
+                insertLetter(key);
+            }
+        }
+
+        function insertLetter(letter) {
+            if (currentTile < WORD_LENGTH && currentRow < MAX_ATTEMPTS) {
+                guesses[currentRow][currentTile] = letter;
+                const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                tile.textContent = letter;
+                tile.setAttribute("data-state", "toggled");
+                currentTile++;
+            }
+        }
+
+        function deleteLetter() {
+            if (currentTile > 0) {
+                currentTile--;
+                guesses[currentRow][currentTile] = "";
+                const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                tile.textContent = "";
+                tile.removeAttribute("data-state");
+            }
+        }
+
+        function submitGuess() {
+            if (currentTile < WORD_LENGTH) {
+                showToast("Not enough letters");
+                return;
+            }
+
+            const guess = guesses[currentRow].join("");
+            
+            // Flip tiles sequentially matching original Wordle behavior
+            revealRow(currentRow, guess);
+        }
+
+        function revealRow(rowNum, guess) {
+            const rowTiles = [];
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                rowTiles.push(document.getElementById(`tile-${rowNum}-${i}`));
+            }
+
+            // Core Wordle matching algorithm handles duplicate letters correctly
+            const targetLetterCounts = {};
+            for (let char of TARGET_WORD) {
+                targetLetterCounts[char] = (targetLetterCounts[char] || 0) + 1;
+            }
+
+            const states = Array(WORD_LENGTH).fill("absent");
+
+            // Step 1: Identify all exact matches (Green)
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                if (guess[i] === TARGET_WORD[i]) {
+                    states[i] = "correct";
+                    targetLetterCounts[guess[i]]--;
+                }
+            }
+
+            // Step 2: Identify partial matches (Yellow)
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                if (states[i] !== "correct" && TARGET_WORD.includes(guess[i])) {
+                    if (targetLetterCounts[guess[i]] > 0) {
+                        states[i] = "present";
+                        targetLetterCounts[guess[i]]--;
+                    }
+                }
+            }
+
+            // Step 3: Animate tile flips & apply styles
+            rowTiles.forEach((tile, i) => {
+                setTimeout(() => {
+                    tile.classList.add("flip");
+                    
+                    // Transition color at the midpoint of the flip animation
+                    setTimeout(() => {
+                        tile.classList.remove("flip");
+                        tile.setAttribute("data-state", states[i]);
+                        
+                        // Update Keyboard coloring after the last tile exposes its color
+                        if (i === WORD_LENGTH - 1) {
+                            updateKeyboard(guess, states);
+                            checkGameEnd(guess);
+                        }
+                    }, 125);
+
+                }, i * 200); // 200ms stagger between tiles
+            });
+        }
+
+        function updateKeyboard(guess, states) {
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                const char = guess[i];
+                const state = states[i];
+                const keyBtn = document.querySelector(`.key[data-key="${char}"]`);
+                
+                if (!keyBtn) continue;
+
+                const currentState = keyBtn.getAttribute("data-state");
+
+                // Priority hierarchy rules: correct > present > absent
+                if (currentState === "correct") continue;
+                if (currentState === "present" && state === "absent") continue;
+
+                keyBtn.setAttribute("data-state", state);
+            }
+        }
+
+        function checkGameEnd(guess) {
+            if (guess === TARGET_WORD) {
+                showToast("Splendid!");
+                gameOver = true;
+            } else {
+                currentRow++;
+                currentTile = 0;
+
+                if (currentRow >= MAX_ATTEMPTS) {
+                    showToast(`The word was: ${TARGET_WORD}`, false);
+                    gameOver = true;
+                }
+            }
+        }
+
+        function showToast(message, autoHide = true) {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+            toast.className = "toast";
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            if (autoHide) {
+                setTimeout(() => {
+                    toast.style.opacity = "0";
+                    setTimeout(() => toast.remove(), 150);
+                }, 2000);
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+
+        // Physical Keyboard Event Bindings
+        window.addEventListener("keydown", (e) => {
+            const key = e.key.toUpperCase();
+            if (key === "BACKSPACE" || key === "ENTER" || /^[A-Z]$/.test(key)) {
+                handleKeyPress(key);
+            }
+        });
+
+        // Virtual Keyboard Click Bindings
+        keys.forEach(key => {
+            key.addEventListener("click", () => {
+                const keyValue = key.getAttribute("data-key");
+                handleKeyPress(keyValue);
+            });
+        });
+
+        // Initialize Application
+        initBoard();
+    </script>
+</body>
+</html>
