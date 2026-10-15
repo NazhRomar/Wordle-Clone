@@ -359,6 +359,12 @@
             user-select: text;
         }
 
+        /* Clues after the next one to reveal */
+        .clue.locked {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
         /* Modal overlay (intro + journal) - blurs the whole site while open */
         .modal-overlay {
             position: fixed;
@@ -403,6 +409,17 @@
             text-align: center;
             -webkit-font-smoothing: antialiased;
             animation: card-in 520ms cubic-bezier(0.2, 0.7, 0.3, 1) 80ms both;
+        }
+
+        /* Alternate contents of one card, swapped with swapCard() */
+        .modal-view {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .modal-view[hidden] {
+            display: none;
         }
 
         .modal-message {
@@ -465,6 +482,96 @@
             background: rgba(255,255,255,0.08);
         }
 
+        .modal-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .modal-btn.primary:disabled:hover {
+            background: var(--accent);
+        }
+
+        .modal-btn:disabled:active {
+            transform: none;
+        }
+
+        .modal-btn-small {
+            appearance: none;
+            align-self: center;
+            border: none;
+            background: none;
+            padding: 0.25rem 0.5rem;
+            color: #9d8fc4;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+        }
+
+        .modal-btn-small:hover {
+            color: var(--accent);
+        }
+
+        .modal-btn-small:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* Countdown - after .letter-lock-timer in sam-bday-21 */
+        #intro-lock {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        #intro-lock[hidden] {
+            display: none;
+        }
+
+        .lock-timer {
+            display: flex;
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .lock-unit {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.75rem 0.25rem 0.6rem;
+            border: 1px solid rgba(196,181,253,0.28);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .lock-num {
+            font-size: clamp(1.35rem, 6vw, 1.75rem);
+            font-weight: 700;
+            line-height: 1;
+            color: var(--accent);
+        }
+
+        /* Fixed-width cell per digit so the timer doesn't jiggle (Poppins has no tabular figures) */
+        .lock-num .d {
+            display: inline-block;
+            width: 0.62em;
+            text-align: center;
+        }
+
+        .lock-label {
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.65;
+        }
+
         @keyframes card-in {
             from { opacity: 0; transform: translateY(18px) scale(0.97); }
             to { opacity: 1; transform: none; }
@@ -507,14 +614,34 @@
 
     <div id="intro-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="intro-message">
         <div class="modal-card">
+          <div id="intro-main" class="modal-view">
             <div id="intro-message" class="modal-message">
                 <p>If you ever find yourself here, please remember that there is no pressure to do this. Don't force yourself if you aren't ready. Future Nazh may have changed and Current Nazh does not know who he is. I left this note the day I started the journal.</p>
                 <p><strong>Do you wish to proceed?</strong></p>
             </div>
-            <div id="intro-actions" class="modal-actions">
-                <button class="modal-btn primary" id="intro-accept">I'm sure</button>
-                <button class="modal-btn ghost" id="intro-decline">No thanks</button>
+            <div id="intro-lock">
+                <div class="lock-timer" aria-hidden="true">
+                    <div class="lock-unit"><span class="lock-num" id="lock-days">00</span><span class="lock-label">Days</span></div>
+                    <div class="lock-unit"><span class="lock-num" id="lock-hours">00</span><span class="lock-label">Hours</span></div>
+                    <div class="lock-unit"><span class="lock-num" id="lock-mins">00</span><span class="lock-label">Mins</span></div>
+                    <div class="lock-unit"><span class="lock-num" id="lock-secs">00</span><span class="lock-label">Secs</span></div>
+                </div>
             </div>
+            <div id="intro-actions" class="modal-actions">
+                <button class="modal-btn primary" id="intro-accept" disabled>I'm sure</button>
+                <button class="modal-btn ghost" id="intro-decline">No thanks</button>
+                <button class="modal-btn-small" id="intro-accept-now">I'm sure (now)</button>
+            </div>
+          </div>
+          <div id="intro-confirm" class="modal-view" hidden>
+            <div class="modal-message">
+                <p><strong>Are you really sure?</strong></p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn primary" id="intro-confirm-yes">Yes, I'm sure</button>
+                <button class="modal-btn ghost" id="intro-confirm-back">Go back</button>
+            </div>
+          </div>
         </div>
     </div>
 
@@ -538,13 +665,13 @@
             <h2 id="clues-title">Clues</h2>
             <button id="clues-close" aria-label="Close clues">&times;</button>
         </div>
-        <p id="clues-hint">Click a clue to reveal it.</p>
+        <p id="clues-hint">Click the clues in order to reveal them.</p>
         <ul id="clues-list">
-            <li><span class="clue" role="button" tabindex="0">nge bat nagclue kaya mo yan</span></li>
-            <li><span class="clue" role="button" tabindex="0">2 Vowels</span></li>
-            <li><span class="clue" role="button" tabindex="0">Contains A and I</span></li>
-            <li><span class="clue" role="button" tabindex="0">I at second position, A at third position</span></li>
-            <li><span class="clue" role="button" tabindex="0">Other word for Journal 🙄</span></li>
+            <li><span class="clue">nge bat nagclue kaya mo yan</span></li>
+            <li><span class="clue">2 Vowels</span></li>
+            <li><span class="clue">Contains A and I</span></li>
+            <li><span class="clue">I at second position, A at third position</span></li>
+            <li><span class="clue">Other word for Journal 🙄</span></li>
         </ul>
     </aside>
 
@@ -776,23 +903,50 @@
             });
         });
 
-        document.querySelectorAll(".clue").forEach(clue => {
-            clue.title = "Click to reveal";
-            const reveal = () => {
-                clue.classList.add("revealed");
-                clue.removeAttribute("role");
-                clue.removeAttribute("tabindex");
-                clue.removeAttribute("title");
-            };
-            clue.addEventListener("click", reveal);
+        // Clues unlock in order: only the first unrevealed one can be clicked
+        const clues = [...document.querySelectorAll(".clue")];
+        let nextClue = 0;
+
+        function refreshClues() {
+            clues.forEach((clue, i) => {
+                if (i < nextClue) return;
+                const isNext = i === nextClue;
+                clue.classList.toggle("locked", !isNext);
+                clue.title = isNext ? "Click to reveal" : "Reveal the previous clue first";
+                if (isNext) {
+                    clue.setAttribute("role", "button");
+                    clue.setAttribute("tabindex", "0");
+                } else {
+                    clue.removeAttribute("role");
+                    clue.removeAttribute("tabindex");
+                }
+            });
+        }
+
+        function revealClue(i, fromKeyboard) {
+            if (i !== nextClue) return;
+            const clue = clues[i];
+            clue.classList.add("revealed");
+            clue.removeAttribute("role");
+            clue.removeAttribute("tabindex");
+            clue.removeAttribute("title");
+            nextClue++;
+            refreshClues();
+            if (fromKeyboard && clues[nextClue]) clues[nextClue].focus();
+        }
+
+        clues.forEach((clue, i) => {
+            clue.addEventListener("click", () => revealClue(i, false));
             clue.addEventListener("keydown", (e) => {
                 if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     e.stopPropagation();
-                    reveal();
+                    revealClue(i, true);
                 }
             });
         });
+
+        refreshClues();
 
         const cluesCard = document.getElementById("clues-card");
         const cluesBackdrop = document.getElementById("clues-backdrop");
@@ -851,23 +1005,83 @@
 
         const introOverlay = document.getElementById("intro-overlay");
 
-        document.getElementById("intro-accept").addEventListener("click", () => {
+        // "I'm sure" stays disabled until this moment (Philippine time)
+        const UNLOCK_AT = new Date("2027-01-09T00:00:00+08:00").getTime();
+        const introAccept = document.getElementById("intro-accept");
+        const introLock = document.getElementById("intro-lock");
+        let lockTimer = null;
+
+        function digits(n) {
+            return String(n).padStart(2, "0").split("").map(d => `<span class="d">${d}</span>`).join("");
+        }
+
+        function updateLock() {
+            const left = UNLOCK_AT - Date.now();
+            if (left <= 0) {
+                clearInterval(lockTimer);
+                introAccept.disabled = false;
+                introLock.hidden = true;
+                document.getElementById("intro-accept-now").hidden = true;
+                return;
+            }
+            const secs = Math.floor(left / 1000);
+            document.getElementById("lock-days").innerHTML = digits(Math.floor(secs / 86400));
+            document.getElementById("lock-hours").innerHTML = digits(Math.floor(secs / 3600) % 24);
+            document.getElementById("lock-mins").innerHTML = digits(Math.floor(secs / 60) % 60);
+            document.getElementById("lock-secs").innerHTML = digits(secs % 60);
+        }
+
+        updateLock();
+        lockTimer = setInterval(updateLock, 1000);
+
+        function acceptIntro() {
             introOpen = false;
+            clearInterval(lockTimer);
             closeModal(introOverlay, () => introOverlay.remove());
+        }
+
+        // Drop the card out, change its contents with `swap`, then play the entrance again
+        function swapCard(overlay, swap) {
+            const card = overlay.querySelector(".modal-card");
+            card.style.pointerEvents = "none";
+            card.classList.add("leaving");
+            setTimeout(() => {
+                swap();
+                // Removing .leaving swaps the animation back to card-in, replaying the entrance
+                card.classList.remove("leaving");
+                card.style.pointerEvents = "";
+            }, 250);
+        }
+
+        const introMain = document.getElementById("intro-main");
+        const introConfirm = document.getElementById("intro-confirm");
+
+        introAccept.addEventListener("click", acceptIntro);
+        document.getElementById("intro-confirm-yes").addEventListener("click", acceptIntro);
+
+        document.getElementById("intro-accept-now").addEventListener("click", () => {
+            swapCard(introOverlay, () => {
+                introMain.hidden = true;
+                introConfirm.hidden = false;
+            });
+        });
+
+        document.getElementById("intro-confirm-back").addEventListener("click", () => {
+            swapCard(introOverlay, () => {
+                introConfirm.hidden = true;
+                introMain.hidden = false;
+            });
         });
 
         document.getElementById("intro-decline").addEventListener("click", () => {
             // Browsers only let scripts close tabs they opened, so fall back to a locked screen
             window.close();
-            document.getElementById("intro-actions").style.pointerEvents = "none";
-            const card = introOverlay.querySelector(".modal-card");
-            card.classList.add("leaving");
-            setTimeout(() => {
+            swapCard(introOverlay, () => {
                 document.getElementById("intro-message").textContent = "That's okay. You can close this page now.";
                 document.getElementById("intro-actions").remove();
-                // Removing .leaving swaps the animation back to card-in, replaying the entrance
-                card.classList.remove("leaving");
-            }, 250);
+                introLock.remove();
+                clearInterval(lockTimer);
+            });
         });
 
         initBoard();
