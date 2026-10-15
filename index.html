@@ -4,24 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wordle Mobile</title>
+    <meta name="theme-color" content="#111111">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Always dark - matches the sam-bday-21 site */
         :root {
-            --color-correct: #6aaa64;
-            --color-present: #c9b458;
-            --color-absent: #787c7e;
-            --color-bg: #ffffff;
-            --color-border: #d3d6da;
-            --color-text: #000000;
-            --key-bg: #e1e6eb;
-        }
+            color-scheme: dark;
+            --color-correct: #538d4e;
+            --color-present: #b59f3b;
+            --color-absent: #3a3a3c;
+            --color-bg: #111111;
+            --color-border: #3a3a3c;
+            --color-text: #ffffff;
+            --key-bg: #818384;
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --color-bg: #121213;
-                --color-border: #3a3a3c;
-                --color-text: #ffffff;
-                --key-bg: #818384;
-            }
+            /* bday theme tokens */
+            --accent: #c4b5fd;
+            --accent-hover: #b3a1fa;
+            --dark-card: #242424;
         }
 
         * {
@@ -62,6 +64,7 @@
             font-size: 22px;
             letter-spacing: 0.15rem;
             text-transform: uppercase;
+            position: relative;
         }
 
         #game-container {
@@ -196,8 +199,8 @@
         }
 
         .toast {
-            background-color: #121213;
-            color: #ffffff;
+            background-color: #ffffff;
+            color: #111111;
             padding: 10px 14px;
             border-radius: 4px;
             font-weight: bold;
@@ -206,6 +209,280 @@
             transition: opacity 0.15s ease-out;
             text-align: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Clues Card - lives in the left whitespace on wide screens */
+        #clues-card {
+            display: none;
+            flex-direction: column;
+            padding: 16px 18px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background-color: var(--color-bg);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        @media (min-width: 900px) {
+            #clues-card {
+                --gutter: calc((100vw - 500px) / 2);
+                --card-width: min(300px, calc(var(--gutter) - 48px));
+                display: flex;
+                position: absolute;
+                top: 74px;
+                left: calc((var(--gutter) - var(--card-width)) / 2);
+                width: var(--card-width);
+                max-height: calc(100% - 98px);
+            }
+        }
+
+        /* On narrow screens the card becomes a modal opened from the header */
+        #clues-btn,
+        #clues-close {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            border: 0;
+            background: none;
+            color: var(--color-text);
+            cursor: pointer;
+        }
+
+        #clues-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.1rem;
+            text-transform: uppercase;
+        }
+
+        #clues-close {
+            font-size: 1.4rem;
+            line-height: 1;
+            width: 28px;
+            height: 28px;
+            margin: -4px -6px 0 0;
+        }
+
+        #clues-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 899px) {
+            #clues-btn,
+            #clues-close {
+                display: flex;
+            }
+
+            #clues-backdrop.open {
+                display: block;
+            }
+
+            #clues-card.open {
+                display: flex;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 60;
+                width: calc(100% - 32px);
+                max-width: 360px;
+                max-height: 70svh;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            }
+        }
+
+        #clues-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        #clues-card h2 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.1rem;
+            text-transform: uppercase;
+        }
+
+        #clues-hint {
+            font-size: 0.75rem;
+            color: var(--key-bg);
+            margin-bottom: 10px;
+        }
+
+        #clues-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        #clues-list li {
+            display: flex;
+            gap: 8px;
+        }
+
+        #clues-list li::before {
+            content: "•";
+            color: var(--color-correct);
+            font-weight: bold;
+        }
+
+        /* Clues stay blurred until clicked */
+        .clue {
+            filter: blur(5px);
+            cursor: pointer;
+            user-select: none;
+            transition: filter 0.2s ease-out;
+        }
+
+        .clue.revealed {
+            filter: none;
+            cursor: default;
+            user-select: text;
+        }
+
+        /* Modal overlay (intro + journal) - blurs the whole site while open */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            background: radial-gradient(ellipse at center, rgba(17,17,17,0.45) 0%, rgba(17,17,17,0.9) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: opacity 0.4s ease-out;
+        }
+
+        .modal-overlay[hidden] {
+            display: none;
+        }
+
+        .modal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Styled after .card / .btn in sam-bday-21 */
+        .modal-card,
+        .modal-card * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .modal-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            width: min(90vw, 400px);
+            padding: clamp(1.5rem, 6vw, 2.5rem) clamp(1.25rem, 5vw, 2rem);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px;
+            background: var(--dark-card);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+            color: #e6e1f2;
+            text-align: center;
+            -webkit-font-smoothing: antialiased;
+            animation: card-in 520ms cubic-bezier(0.2, 0.7, 0.3, 1) 80ms both;
+        }
+
+        .modal-message {
+            font-size: clamp(0.9rem, 3vw, 1.05rem);
+            line-height: 1.6;
+        }
+
+        .modal-message p + p {
+            margin-top: 1em;
+        }
+
+        .modal-message strong {
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .modal-btn {
+            appearance: none;
+            width: 100%;
+            padding: 0.9rem 1.8rem;
+            border: none;
+            border-radius: 999px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 150ms ease, transform 150ms ease;
+        }
+
+        .modal-btn:active {
+            transform: translateY(1px);
+        }
+
+        .modal-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .modal-btn.primary {
+            background: var(--accent);
+            color: #1a1a1a;
+        }
+
+        .modal-btn.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .modal-btn.ghost {
+            background: transparent;
+            color: inherit;
+            border: 1px solid rgba(255,255,255,0.25);
+        }
+
+        .modal-btn.ghost:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        @keyframes card-in {
+            from { opacity: 0; transform: translateY(18px) scale(0.97); }
+            to { opacity: 1; transform: none; }
+        }
+
+        /* Played before a card closes or swaps its content */
+        .modal-card.leaving {
+            animation: card-out 250ms ease-in both;
+        }
+
+        @keyframes card-out {
+            from { opacity: 1; transform: none; }
+            to { opacity: 0; transform: translateY(12px) scale(0.97); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .modal-card,
+            .modal-card.leaving { animation: none; }
         }
 
         @keyframes pop {
@@ -221,9 +498,55 @@
 </head>
 <body>
 
-    <header>Wordle</header>
+    <header>
+        Wordle
+        <button id="clues-btn" aria-controls="clues-card" aria-expanded="false">Clues</button>
+    </header>
 
     <div id="toast-container"></div>
+
+    <div id="intro-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="intro-message">
+        <div class="modal-card">
+            <div id="intro-message" class="modal-message">
+                <p>If you ever find yourself here, please remember that there is no pressure to do this. Don't force yourself if you aren't ready. Future Nazh may have changed and Current Nazh does not know who he is. I left this note the day I started the journal.</p>
+                <p><strong>Do you wish to proceed?</strong></p>
+            </div>
+            <div id="intro-actions" class="modal-actions">
+                <button class="modal-btn primary" id="intro-accept">I'm sure</button>
+                <button class="modal-btn ghost" id="intro-decline">No thanks</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="journal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="journal-message" hidden>
+        <div class="modal-card">
+            <div id="journal-message" class="modal-message">
+                <p>Proceeding will give you access to Nazh's Journal. Current Nazh wants to know that you're doing this, but Future Nazh may or may not, you can chat him if you wish to.</p>
+                <p><strong>Are you sure that you're ready?</strong></p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn primary" id="journal-yes">Yes</button>
+                <button class="modal-btn ghost" id="journal-no">No</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="clues-backdrop"></div>
+
+    <aside id="clues-card" aria-labelledby="clues-title">
+        <div id="clues-header">
+            <h2 id="clues-title">Clues</h2>
+            <button id="clues-close" aria-label="Close clues">&times;</button>
+        </div>
+        <p id="clues-hint">Click a clue to reveal it.</p>
+        <ul id="clues-list">
+            <li><span class="clue" role="button" tabindex="0">nge bat nagclue kaya mo yan</span></li>
+            <li><span class="clue" role="button" tabindex="0">2 Vowels</span></li>
+            <li><span class="clue" role="button" tabindex="0">Contains A and I</span></li>
+            <li><span class="clue" role="button" tabindex="0">I at second position, A at third position</span></li>
+            <li><span class="clue" role="button" tabindex="0">Other word for Journal 🙄</span></li>
+        </ul>
+    </aside>
 
     <div id="game-container">
         <div id="board-container">
@@ -268,14 +591,17 @@
         </div>
     </div>
 
+    <script src="words.js"></script>
     <script>
-        const TARGET_WORD = "LOVEU".toUpperCase(); 
+        const TARGET_WORD = "DIARY".toUpperCase();
         const MAX_ATTEMPTS = 6;
         const WORD_LENGTH = 5;
 
         let currentRow = 0;
         let currentTile = 0;
         let gameOver = false;
+        let introOpen = true;
+        let cluesModalOpen = false;
         const guesses = Array(MAX_ATTEMPTS).fill("").map(() => Array(WORD_LENGTH).fill(""));
 
         const board = document.getElementById("board");
@@ -296,7 +622,7 @@
         }
 
         function handleKeyPress(key) {
-            if (gameOver) return;
+            if (gameOver || introOpen || cluesModalOpen) return;
 
             if (key === "ENTER") {
                 submitGuess();
@@ -334,6 +660,11 @@
             }
 
             const guess = guesses[currentRow].join("");
+            if (!VALID_WORDS.has(guess)) {
+                showToast("Not in word list");
+                return;
+            }
+
             revealRow(currentRow, guess);
         }
 
@@ -403,8 +734,8 @@
 
         function checkGameEnd(guess) {
             if (guess === TARGET_WORD) {
-                showToast("Splendid!");
                 gameOver = true;
+                setTimeout(() => journalOverlay.hidden = false, 600);
             } else {
                 currentRow++;
                 currentTile = 0;
@@ -443,6 +774,100 @@
                 const keyValue = key.getAttribute("data-key");
                 handleKeyPress(keyValue);
             });
+        });
+
+        document.querySelectorAll(".clue").forEach(clue => {
+            clue.title = "Click to reveal";
+            const reveal = () => {
+                clue.classList.add("revealed");
+                clue.removeAttribute("role");
+                clue.removeAttribute("tabindex");
+                clue.removeAttribute("title");
+            };
+            clue.addEventListener("click", reveal);
+            clue.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    reveal();
+                }
+            });
+        });
+
+        const cluesCard = document.getElementById("clues-card");
+        const cluesBackdrop = document.getElementById("clues-backdrop");
+        const cluesBtn = document.getElementById("clues-btn");
+
+        function setCluesModal(open) {
+            cluesModalOpen = open;
+            cluesCard.classList.toggle("open", open);
+            cluesBackdrop.classList.toggle("open", open);
+            cluesBtn.setAttribute("aria-expanded", open);
+            if (open) {
+                cluesCard.setAttribute("role", "dialog");
+                cluesCard.setAttribute("aria-modal", "true");
+                document.getElementById("clues-close").focus();
+            } else {
+                cluesCard.removeAttribute("role");
+                cluesCard.removeAttribute("aria-modal");
+                cluesBtn.blur();
+            }
+        }
+
+        cluesBtn.addEventListener("click", () => setCluesModal(true));
+        document.getElementById("clues-close").addEventListener("click", () => setCluesModal(false));
+        cluesBackdrop.addEventListener("click", () => setCluesModal(false));
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && cluesModalOpen) setCluesModal(false);
+        });
+        // Don't leave the game locked if the window is widened while the modal is open
+        window.matchMedia("(min-width: 900px)").addEventListener("change", (e) => {
+            if (e.matches && cluesModalOpen) setCluesModal(false);
+        });
+
+        const JOURNAL_URL = "https://docs.google.com/document/d/1fItCqSUjtop4GTi8SWrtzGBuV76vcsWWcePcVA-N-X0/edit?usp=sharing";
+        const journalOverlay = document.getElementById("journal-overlay");
+
+        // Fade the overlay and drop the card out, then run `after`
+        function closeModal(overlay, after) {
+            const card = overlay.querySelector(".modal-card");
+            card.classList.add("leaving");
+            overlay.classList.add("hidden");
+            setTimeout(() => {
+                card.classList.remove("leaving");
+                overlay.classList.remove("hidden");
+                after();
+            }, 400);
+        }
+
+        document.getElementById("journal-yes").addEventListener("click", () => {
+            window.open(JOURNAL_URL, "_blank", "noopener");
+            closeModal(journalOverlay, () => journalOverlay.hidden = true);
+        });
+
+        document.getElementById("journal-no").addEventListener("click", () => {
+            closeModal(journalOverlay, () => journalOverlay.hidden = true);
+        });
+
+        const introOverlay = document.getElementById("intro-overlay");
+
+        document.getElementById("intro-accept").addEventListener("click", () => {
+            introOpen = false;
+            closeModal(introOverlay, () => introOverlay.remove());
+        });
+
+        document.getElementById("intro-decline").addEventListener("click", () => {
+            // Browsers only let scripts close tabs they opened, so fall back to a locked screen
+            window.close();
+            document.getElementById("intro-actions").style.pointerEvents = "none";
+            const card = introOverlay.querySelector(".modal-card");
+            card.classList.add("leaving");
+            setTimeout(() => {
+                document.getElementById("intro-message").textContent = "That's okay. You can close this page now.";
+                document.getElementById("intro-actions").remove();
+                // Removing .leaving swaps the animation back to card-in, replaying the entrance
+                card.classList.remove("leaving");
+            }, 250);
         });
 
         initBoard();
